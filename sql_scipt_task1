@@ -1,0 +1,47 @@
+#TASK1:Clean a dataset by removing missing values and outliers.
+
+
+#Step 1:Create Schema titanic then omport data from Datasets 
+
+SELECT * FROM titanic.train;
+#Step 2 : Remove rows with NULL values in Age or Embarked columns
+DELETE FROM train
+WHERE Age IS NULL OR Embarked IS NULL;
+
+#Step 3: Calculate row count and offsets for Q1 and Q3
+SET @row_count = (SELECT COUNT(*) FROM train);
+SET @q1_offset = ROUND(@row_count * 0.25);
+SET @q3_offset = ROUND(@row_count * 0.75);
+
+#Step 4: Prepare and execute statements to calculate Q1 and Q3
+SET @sql_q1 = CONCAT('SELECT Fare INTO @Q1 FROM train ORDER BY Fare LIMIT 1 OFFSET ', @q1_offset);
+SET @sql_q3 = CONCAT('SELECT Fare INTO @Q3 FROM train ORDER BY Fare LIMIT 1 OFFSET ', @q3_offset);
+
+PREPARE stmt_q1 FROM @sql_q1;
+EXECUTE stmt_q1;
+DEALLOCATE PREPARE stmt_q1;
+
+PREPARE stmt_q3 FROM @sql_q3;
+EXECUTE stmt_q3;
+DEALLOCATE PREPARE stmt_q3;
+
+-- Step 5: Calculate IQR and define lower and upper bounds
+SET @IQR = @Q3 - @Q1;
+SET @LowerBound = @Q1 - 1.5 * @IQR;
+SET @UpperBound = @Q3 + 1.5 * @IQR;
+
+
+-- Step 6: Remove outliers based on Fare
+DELETE FROM train
+WHERE Fare < @LowerBound OR Fare > @UpperBound;
+
+
+-- Check for missing values in other columns
+SELECT *
+FROM train
+WHERE Pclass IS NULL OR Name IS NULL OR Sex IS NULL OR SibSp IS NULL OR Parch IS NULL OR Ticket IS NULL OR Cabin IS NULL;
+
+
+-- Calculate mean and standard deviation for Age and Fare
+SELECT AVG(Age) AS mean_age, STDDEV(Age) AS stddev_age, AVG(Fare) AS mean_fare, STDDEV(Fare) AS stddev_fare
+FROM train;
